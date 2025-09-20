@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Leaf, User, Stethoscope, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 type UserRole = 'doctor' | 'patient';
 
@@ -8,14 +9,41 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const { signIn, signUp, loading } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>('doctor');
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(selectedRole);
+    handleAuth();
+  };
+
+  const handleAuth = async () => {
+    setError(null);
+    
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password, fullName, selectedRole);
+        if (error) {
+          setError(error.message);
+        } else {
+          // Profile will be set by useAuth hook, which will trigger onLogin
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          setError(error.message);
+        }
+        // Profile will be set by useAuth hook, which will trigger onLogin
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    }
   };
 
   return (
@@ -32,7 +60,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         {/* Login Form */}
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Welcome Back</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </h2>
           
           {/* Role Selection */}
           <div className="mb-6">
@@ -66,6 +96,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignUp && (
+              <div>
+                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  placeholder="Enter your full name"
+                  required={isSignUp}
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -105,18 +152,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             </div>
 
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium"
+              disabled={loading}
+              className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In as {selectedRole === 'doctor' ? 'Doctor' : 'Patient'}
+              {loading ? 'Please wait...' : 
+                `${isSignUp ? 'Sign Up' : 'Sign In'} as ${selectedRole === 'doctor' ? 'Doctor' : 'Patient'}`
+              }
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <a href="#" className="text-green-600 hover:text-green-700 text-sm">
-              Forgot your password?
-            </a>
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-green-600 hover:text-green-700 text-sm"
+            >
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </button>
           </div>
         </div>
 

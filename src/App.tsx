@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from './hooks/useAuth';
 import Login from './components/Login';
 import DoctorDashboard from './components/DoctorDashboard';
 import PatientProfile from './components/PatientProfile';
@@ -11,13 +12,23 @@ type UserRole = 'doctor' | 'patient';
 type CurrentPage = 'login' | 'dashboard' | 'patient-profile' | 'food-database' | 'diet-builder' | 'reports' | 'mobile-patient';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>('doctor');
+  const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<CurrentPage>('login');
 
+  // Update current page based on authentication state
+  React.useEffect(() => {
+    if (profile) {
+      if (profile.role === 'doctor') {
+        setCurrentPage('dashboard');
+      } else {
+        setCurrentPage('mobile-patient');
+      }
+    } else if (!loading) {
+      setCurrentPage('login');
+    }
+  }, [profile, loading]);
+
   const handleLogin = (role: UserRole) => {
-    setUserRole(role);
-    setIsLoggedIn(true);
     if (role === 'doctor') {
       setCurrentPage('dashboard');
     } else {
@@ -26,7 +37,6 @@ function App() {
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
     setCurrentPage('login');
   };
 
@@ -34,11 +44,19 @@ function App() {
     setCurrentPage(page);
   };
 
-  if (!isLoggedIn) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!profile) {
     return <Login onLogin={handleLogin} />;
   }
 
-  if (userRole === 'patient') {
+  if (profile.role === 'patient') {
     return <MobilePatientView onLogout={handleLogout} />;
   }
 

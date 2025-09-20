@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, Plus, Eye } from 'lucide-react';
+import { useFoodDatabase } from '../hooks/useFoodDatabase';
 import Sidebar from './Sidebar';
 
 type CurrentPage = 'login' | 'dashboard' | 'patient-profile' | 'food-database' | 'diet-builder' | 'reports' | 'mobile-patient';
@@ -9,9 +10,11 @@ interface FoodDatabaseProps {
 }
 
 const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
+  const { foodItems, loading, searchFoodItems, addFoodItem } = useFoodDatabase();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDosha, setSelectedDosha] = useState('All');
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const categories = ['All', 'Grains', 'Vegetables', 'Fruits', 'Spices', 'Legumes', 'Dairy', 'Oils'];
   const doshas = ['All', 'Vata+', 'Pitta+', 'Kapha+', 'Tridoshic'];
@@ -90,31 +93,7 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
       virya: 'Heating',
       vipaka: 'Sweet',
       properties: ['Digestive fire enhancer', 'Anti-nausea', 'Warming'],
-      ayurvedicNote: 'Universal digestive aid, use moderately in Pitta'
-    },
-    {
-      name: 'Coconut Oil',
-      category: 'Oils',
-      calories: 862,
-      protein: 0,
-      carbs: 0,
-      fat: 100,
-      fiber: 0,
-      doshaEffect: 'Pitta+',
-      rasa: 'Sweet',
-      virya: 'Cooling',
-      vipaka: 'Sweet',
-      properties: ['Moisturizing', 'Cooling', 'Antimicrobial'],
-      ayurvedicNote: 'Excellent for Pitta, good for all doshas in moderation'
-    }
-  ];
-
-  const filteredFoods = foodItems.filter(food => {
-    const matchesSearch = food.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || food.category === selectedCategory;
-    const matchesDosha = selectedDosha === 'All' || food.doshaEffect === selectedDosha;
-    return matchesSearch && matchesCategory && matchesDosha;
-  });
+  const filteredFoods = searchFoodItems(searchTerm, selectedCategory, selectedDosha);
 
   return (
     <div className="flex">
@@ -134,7 +113,7 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
             </div>
             <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
               <Plus className="w-4 h-4 mr-2 inline" />
-              Add Food Item
+              {showAddForm ? 'Cancel' : 'Add Food Item'}
             </button>
           </div>
         </header>
@@ -183,6 +162,11 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
 
         {/* Food Items Grid */}
         <main className="p-6 overflow-y-auto bg-stone-50">
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">Loading food items...</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredFoods.map((food, index) => (
               <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
@@ -197,12 +181,12 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <span>{food.calories} cal/100g</span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      food.doshaEffect === 'Tridoshic' ? 'bg-green-100 text-green-700' :
-                      food.doshaEffect === 'Vata+' ? 'bg-purple-100 text-purple-700' :
-                      food.doshaEffect === 'Pitta+' ? 'bg-red-100 text-red-700' :
+                      food.dosha_effect === 'Tridoshic' ? 'bg-green-100 text-green-700' :
+                      food.dosha_effect === 'Vata+' ? 'bg-purple-100 text-purple-700' :
+                      food.dosha_effect === 'Pitta+' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700'
                     }`}>
-                      {food.doshaEffect}
+                      {food.dosha_effect}
                     </span>
                   </div>
                 </div>
@@ -251,12 +235,12 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
                   {/* Properties Tags */}
                   <div className="mt-3">
                     <div className="flex flex-wrap gap-1">
-                      {food.properties.slice(0, 2).map((prop, i) => (
+                      {food.properties?.slice(0, 2).map((prop, i) => (
                         <span key={i} className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">
                           {prop}
                         </span>
                       ))}
-                      {food.properties.length > 2 && (
+                      {food.properties && food.properties.length > 2 && (
                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
                           +{food.properties.length - 2} more
                         </span>
@@ -266,7 +250,7 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
 
                   {/* Ayurvedic Note */}
                   <div className="mt-3 p-3 bg-amber-50 rounded-lg">
-                    <p className="text-xs text-amber-800">{food.ayurvedicNote}</p>
+                    <p className="text-xs text-amber-800">{food.ayurvedic_note}</p>
                   </div>
                 </div>
 
@@ -285,6 +269,7 @@ const FoodDatabase: React.FC<FoodDatabaseProps> = ({ onNavigate }) => {
               </div>
             ))}
           </div>
+          )}
 
           {filteredFoods.length === 0 && (
             <div className="text-center py-12">
