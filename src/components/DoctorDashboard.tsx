@@ -11,6 +11,8 @@ import {
   MoreVertical
 } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { usePatients } from '../hooks/usePatients';
+import { useAuth } from '../hooks/useAuth';
 
 type CurrentPage = 'login' | 'dashboard' | 'patient-profile' | 'food-database' | 'diet-builder' | 'reports' | 'mobile-patient';
 
@@ -19,19 +21,22 @@ interface DoctorDashboardProps {
 }
 
 const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onNavigate }) => {
+  const { profile } = useAuth();
+  const { patients, loading } = usePatients();
+
   const stats = [
-    { label: 'Total Patients', value: '248', icon: Users, color: 'bg-blue-500', change: '+12%' },
+    { label: 'Total Patients', value: patients.length.toString(), icon: Users, color: 'bg-blue-500', change: '+12%' },
     { label: 'Active Diet Plans', value: '89', icon: FileText, color: 'bg-green-500', change: '+8%' },
     { label: 'This Month Consultations', value: '156', icon: Calendar, color: 'bg-purple-500', change: '+15%' },
     { label: 'Success Rate', value: '94%', icon: TrendingUp, color: 'bg-amber-500', change: '+3%' },
   ];
 
-  const recentPatients = [
-    { name: 'Priya Sharma', age: 32, lastVisit: '2 days ago', condition: 'Weight Management' },
-    { name: 'Rajesh Kumar', age: 45, lastVisit: '1 week ago', condition: 'Digestive Issues' },
-    { name: 'Anita Singh', age: 28, lastVisit: '3 days ago', condition: 'Stress & Anxiety' },
-    { name: 'Vikram Patel', age: 52, lastVisit: '5 days ago', condition: 'Joint Pain' },
-  ];
+  const recentPatients = patients.slice(0, 4).map(patient => ({
+    name: patient.profile?.full_name || 'Unknown',
+    age: patient.age || 0,
+    lastVisit: new Date(patient.updated_at).toLocaleDateString(),
+    condition: patient.constitution || 'General Health'
+  }));
 
   const upcomingAppointments = [
     { patient: 'Meera Joshi', time: '10:00 AM', type: 'Follow-up' },
@@ -54,7 +59,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onNavigate }) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-              <p className="text-gray-600">Welcome back, Dr. Ayurvedic Practitioner</p>
+              <p className="text-gray-600">Welcome back, {profile?.full_name || 'Doctor'}</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -132,7 +137,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onNavigate }) => {
                 </div>
               </div>
               <div className="divide-y divide-gray-200">
-                {recentPatients.map((patient, index) => (
+                {loading ? (
+                  <div className="p-6 text-center text-gray-500">Loading patients...</div>
+                ) : recentPatients.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">No patients yet</div>
+                ) : recentPatients.map((patient, index) => (
                   <div key={index} className="p-6 hover:bg-gray-50 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">

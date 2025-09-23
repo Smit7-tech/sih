@@ -12,6 +12,8 @@ import {
   Download
 } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { usePatients } from '../hooks/usePatients';
+import { useState as useReactState } from 'react';
 
 type CurrentPage = 'login' | 'dashboard' | 'patient-profile' | 'food-database' | 'diet-builder' | 'reports' | 'mobile-patient';
 
@@ -20,23 +22,32 @@ interface PatientProfileProps {
 }
 
 const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
+  const { patients, loading, addPatient } = usePatients();
   const [activeTab, setActiveTab] = useState<'profile' | 'diet-charts' | 'progress' | 'reports'>('profile');
+  const [selectedPatientIndex, setSelectedPatientIndex] = useReactState(0);
+  const [showAddForm, setShowAddForm] = useReactState(false);
 
-  const patient = {
-    name: 'Priya Sharma',
-    age: 32,
-    gender: 'Female',
-    weight: '65 kg',
-    height: '5\'4"',
-    bmi: '22.4',
-    bloodGroup: 'A+',
-    phone: '+91 98765 43210',
-    email: 'priya.sharma@email.com',
-    address: 'Mumbai, Maharashtra',
-    occupation: 'Software Engineer',
-    constitution: 'Vata-Pitta',
-    allergies: 'Dairy products, Nuts',
-    medicalHistory: 'Migraine, Anxiety',
+  const patient = patients[selectedPatientIndex] || null;
+
+  const [newPatient, setNewPatient] = useReactState({
+    age: 0,
+    gender: 'female' as 'male' | 'female' | 'other',
+    weight: 0,
+    height: 0,
+    blood_group: '',
+    address: '',
+    occupation: '',
+    constitution: '',
+    allergies: '',
+    medical_history: ''
+  });
+
+  const handleAddPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await addPatient(newPatient);
+    if (!error) {
+      setShowAddForm(false);
+    }
   };
 
   const dietCharts = [
@@ -78,27 +89,32 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-medium text-green-700">PS</span>
+              {patient ? (
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-lg font-medium text-green-700">
+                      {patient.profile?.full_name?.split(' ').map(n => n[0]).join('') || 'P'}
+                    </span>
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-800">{patient.profile?.full_name || 'Patient'}</h1>
+                    <p className="text-gray-600">{patient.age} years • {patient.gender} • {patient.constitution}</p>
+                  </div>
                 </div>
+              ) : (
                 <div>
-                  <h1 className="text-xl font-bold text-gray-800">{patient.name}</h1>
-                  <p className="text-gray-600">{patient.age} years • {patient.gender} • {patient.constitution}</p>
+                  <h1 className="text-xl font-bold text-gray-800">Patient Management</h1>
+                  <p className="text-gray-600">Manage patient profiles and information</p>
                 </div>
-              </div>
+              )}
             </div>
             <div className="flex items-center space-x-3">
-              <button className="px-4 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50">
-                <Edit3 className="w-4 h-4 mr-2 inline" />
-                Edit Profile
-              </button>
               <button 
-                onClick={() => onNavigate('diet-builder')}
+                onClick={() => setShowAddForm(true)}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
                 <Plus className="w-4 h-4 mr-2 inline" />
-                New Diet Plan
+                Add Patient
               </button>
             </div>
           </div>
@@ -130,6 +146,40 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
 
         {/* Main Content */}
         <main className="p-6 overflow-y-auto bg-stone-50">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="text-gray-500">Loading patients...</div>
+            </div>
+          ) : patients.length === 0 ? (
+            <div className="text-center py-12">
+              <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">No patients added yet</p>
+              <button 
+                onClick={() => setShowAddForm(true)}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              >
+                Add Your First Patient
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Patient Selector */}
+              {patients.length > 1 && (
+                <div className="mb-6">
+                  <select
+                    value={selectedPatientIndex}
+                    onChange={(e) => setSelectedPatientIndex(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
+                  >
+                    {patients.map((p, index) => (
+                      <option key={p.id} value={index}>
+                        {p.profile?.full_name || `Patient ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
           {activeTab === 'profile' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Basic Information */}
@@ -139,26 +189,26 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-gray-600">Weight</label>
-                      <p className="font-medium text-gray-800">{patient.weight}</p>
+                      <p className="font-medium text-gray-800">{patient?.weight ? `${patient.weight} kg` : 'Not set'}</p>
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Height</label>
-                      <p className="font-medium text-gray-800">{patient.height}</p>
+                      <p className="font-medium text-gray-800">{patient?.height ? `${patient.height} cm` : 'Not set'}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-gray-600">BMI</label>
-                      <p className="font-medium text-gray-800">{patient.bmi}</p>
+                      <p className="font-medium text-gray-800">{patient?.bmi || 'Not calculated'}</p>
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Blood Group</label>
-                      <p className="font-medium text-gray-800">{patient.bloodGroup}</p>
+                      <p className="font-medium text-gray-800">{patient?.blood_group || 'Not set'}</p>
                     </div>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Ayurvedic Constitution</label>
-                    <p className="font-medium text-amber-600">{patient.constitution}</p>
+                    <p className="font-medium text-amber-600">{patient?.constitution || 'Not assessed'}</p>
                   </div>
                 </div>
               </div>
@@ -169,19 +219,19 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-gray-600">Phone</label>
-                    <p className="font-medium text-gray-800">{patient.phone}</p>
+                    <p className="font-medium text-gray-800">{patient?.profile?.phone || 'Not provided'}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Email</label>
-                    <p className="font-medium text-gray-800">{patient.email}</p>
+                    <p className="font-medium text-gray-800">{patient?.profile?.email || 'Not provided'}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Address</label>
-                    <p className="font-medium text-gray-800">{patient.address}</p>
+                    <p className="font-medium text-gray-800">{patient?.address || 'Not provided'}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Occupation</label>
-                    <p className="font-medium text-gray-800">{patient.occupation}</p>
+                    <p className="font-medium text-gray-800">{patient?.occupation || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
@@ -192,13 +242,75 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ onNavigate }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="text-sm text-gray-600">Allergies</label>
-                    <p className="font-medium text-red-600">{patient.allergies}</p>
+                    <p className="font-medium text-red-600">{patient?.allergies || 'None reported'}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Medical History</label>
-                    <p className="font-medium text-gray-800">{patient.medicalHistory}</p>
+                    <p className="font-medium text-gray-800">{patient?.medical_history || 'None reported'}</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+            </>
+          )}
+
+          {/* Add Patient Form Modal */}
+          {showAddForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-lg font-semibold mb-4">Add New Patient</h3>
+                <form onSubmit={handleAddPatient} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                      <input
+                        type="number"
+                        value={newPatient.age}
+                        onChange={(e) => setNewPatient({...newPatient, age: parseInt(e.target.value)})}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      <select
+                        value={newPatient.gender}
+                        onChange={(e) => setNewPatient({...newPatient, gender: e.target.value as any})}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      >
+                        <option value="female">Female</option>
+                        <option value="male">Male</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Constitution</label>
+                    <input
+                      type="text"
+                      value={newPatient.constitution}
+                      onChange={(e) => setNewPatient({...newPatient, constitution: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="e.g., Vata-Pitta"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                    >
+                      Add Patient
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
